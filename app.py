@@ -1,69 +1,49 @@
+from flask import Flask, render_template, request
 import pickle
-import streamlit as st
-st.title("laptop price predictor")
-# import the model
-pipe = pickle.load(open('mypipe.pkl','rb'))
-data = pickle.load(open('mydata.pkl.pkl','rb'))
-# brand
-brand = st.selectbox('Brand',data['Company'].unique())
-# type of laptop
-type = st.selectbpox('type',data['TypeName'].unique())
-# ram
-type = st.selectbox('Ram(in GB'),[2,4,6,8,12,16,24,32,64]
-# weight
-weight = st.number_input('weight of the laptop')
-# touchscreen
-touchscreen = st.selectbox('TouchScreen',['NO','YES'])
-# ips
-ips = st.selectbox('Ips',['NO','YES'])
-# screen size
-screensize = st.number_input('Screen Size')
-# resolution
-resolution = st.selectbox('Screen Resolution',['1920*1000','1366*768',
-'1600*900','3840*2160','3200*1800','2800*1800','2560*1600','2560*1440',
-'2304*1440'])
-# cpu
-cpu = st.selectbox('Brand',data['Cpu brand'].unique())
-# hdd
-hdd = st.selectbox('HDD(in GB'),[0,128,256,512,1024,2048]
-# ssd
-ssd = st.selectbox('Ssd(in GB'),[0,8,128,256,512,1024]
-# gpu
-gpu = st.selectbox('gpu',data['gpu brand'].unique())
-# 0s
-os = st.selectbox(('Os'),data['Os'].unique())
+import numpy as np
 
-if st.button('Predict Price'):
-    # query
-    ppi = None
-    if touchscreen == 'Yes':
-        touchscreen = 1
-    else:
-        touchscreen = 0
+app = Flask(__name__,template_folder='templetes')
 
-    if ips == 'Yes':
-        ips = 1
-    else:
-        ips = 0
+# Load the model and data
+pipe = pickle.load(open('pipe.pkl', 'rb'))
+data = pickle.load(open('data.pkl', 'rb'))
 
-    X_res = int(resolution.split('x')[0])
-    Y_res = int(resolution.split('x')[1])
-    ppi = ((X_res**2) + (Y_res**2))**0.5/screen_size
-    query = np.array([company,type,ram,weight,touchscreen,ips,ppi,cpu,hdd,ssd,gpu,os])
+# Define routes
+@app.route('/')
+def home():
+    return render_template('index.html')
 
-    query = query.reshape(1,12)
-    st.title("The predicted price of this configuration is " + str(int(np.exp(pipe.predict(query)[0]))))
+@app.route('/predict', methods=['POST',])
+def predict():
+    if request.method == 'POST':
+        # Retrieve input values from the form
+        company = request.form['company']
+        laptop_type = request.form['laptop_type']
+        RAM = (request.form['RAM'])
+        weight = (request.form['weight'])
+        touchscreen = int (request.form['touchscreen'])
+        ips = int(request.form['ips']) 
+        resolution = request.form['resolution']
+        cpu = request.form['cpu']
+        hdd = int(request.form['hdd'])
+        ssd = int(request.form['ssd'])
+        gpu = request.form['gpu']
+        os = request.form['os']
+
+        # Create query array
+        query = np.array([company, laptop_type, RAM, weight, touchscreen, ips, resolution, cpu, hdd, ssd, gpu, os], dtype=object)
+        query = query.reshape(1, 12)
+
+        # Make prediction
+        try:
+            predicted_price = int(np.exp(pipe.predict(query)[0]))
+        except Exception as e:
+            print("Error occurred during prediction:", e)
+    
+            predicted_price = 10000
+
+        return render_template('result.html',predicted_price=predicted_price)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == '__main__':
+    app.run(debug=True)
