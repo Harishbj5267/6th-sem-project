@@ -1,49 +1,66 @@
-from flask import Flask, render_template, request
+import streamlit as st
 import pickle
 import numpy as np
 
-app = Flask(__name__,template_folder='templetes')
+# import the model
+pipe = pickle.load(open('pipe.pkl','rb'))
+df = pickle.load(open('df.pkl','rb'))
 
-# Load the model and data
-pipe = pickle.load(open('pipe.pkl', 'rb'))
-data = pickle.load(open('data.pkl', 'rb'))
+st.title("Laptop Predictor")
 
-# Define routes
-@app.route('/')
-def home():
-    return render_template('index.html')
+# brand
+company = st.selectbox('Brand',df['Company'].unique())
 
-@app.route('/predict', methods=['POST',])
-def predict():
-    if request.method == 'POST':
-        # Retrieve input values from the form
-        company = request.form['company']
-        laptop_type = request.form['laptop_type']
-        RAM = (request.form['RAM'])
-        weight = (request.form['weight'])
-        touchscreen = int (request.form['touchscreen'])
-        ips = int(request.form['ips']) 
-        resolution = request.form['resolution']
-        cpu = request.form['cpu']
-        hdd = int(request.form['hdd'])
-        ssd = int(request.form['ssd'])
-        gpu = request.form['gpu']
-        os = request.form['os']
+# type of laptop
+type = st.selectbox('Type',df['TypeName'].unique())
 
-        # Create query array
-        query = np.array([company, laptop_type, RAM, weight, touchscreen, ips, resolution, cpu, hdd, ssd, gpu, os], dtype=object)
-        query = query.reshape(1, 12)
+# Ram
+ram = st.selectbox('RAM(in GB)',[2,4,6,8,12,16,24,32,64])
 
-        # Make prediction
-        try:
-            predicted_price = int(np.exp(pipe.predict(query)[0]))
-        except Exception as e:
-            print("Error occurred during prediction:", e)
-    
-            predicted_price = 10000
+# weight
+weight = st.number_input('Weight of the Laptop')
 
-        return render_template('result.html',predicted_price=predicted_price)
+# Touchscreen
+touchscreen = st.selectbox('Touchscreen',['No','Yes'])
 
+# IPS
+ips = st.selectbox('IPS',['No','Yes'])
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# screen size
+screen_size = st.number_input('Screen Size')
+
+# resolution
+resolution = st.selectbox('Screen Resolution',['1920x1080','1366x768','1600x900','3840x2160','3200x1800','2880x1800','2560x1600','2560x1440','2304x1440'])
+
+#cpu
+cpu = st.selectbox('CPU',df['Cpu brand'].unique())
+
+hdd = st.selectbox('HDD(in GB)',[0,128,256,512,1024,2048])
+
+ssd = st.selectbox('SSD(in GB)',[0,8,128,256,512,1024])
+
+gpu = st.selectbox('GPU',df['Gpu brand'].unique())
+
+os = st.selectbox('OS',df['os'].unique())
+
+if st.button('Predict Price'):
+    # query
+    ppi = None
+    if touchscreen == 'Yes':
+        touchscreen = 1
+    else:
+        touchscreen = 0
+
+    if ips == 'Yes':
+        ips = 1
+    else:
+        ips = 0
+
+    X_res = int(resolution.split('x')[0])
+    Y_res = int(resolution.split('x')[1])
+    ppi = ((X_res**2) + (Y_res**2))**0.5/screen_size
+    query = np.array([company,type,ram,weight,touchscreen,ips,ppi,cpu,hdd,ssd,gpu,os])
+
+    query = query.reshape(1,12)
+    st.title("The predicted price of this configuration is " + str(int(np.exp(pipe.predict(query)[0]))))
+
